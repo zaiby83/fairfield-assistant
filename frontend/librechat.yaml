@@ -1,0 +1,78 @@
+# Fairfield AI Assistant - LibreChat configuration (DEV)
+# Pinned to LibreChat v0.8.8; `version` matches that tag's librechat.example.yaml.
+# Docs: https://www.librechat.ai/docs/configuration/librechat_yaml
+# Mounted into the api container at /app/librechat.yaml by docker-compose.override.yml.
+
+version: 1.3.17
+
+cache: true
+
+interface:
+  customWelcome: 'Welcome to the Fairfield AI Assistant 👋 — built by TSS for City of Fairfield staff.'
+  termsOfService:
+    externalUrl: 'https://<otis365-link-to-IT-POL-AI-001>'
+    openNewTab: true
+    modalAcceptance: true
+    modalTitle: 'City of Fairfield AI Acceptable Use'
+    modalContent: |
+      # City of Fairfield AI Acceptable Use
+
+      The Fairfield AI Assistant is an internal tool for City of Fairfield staff, operated by Technology Support Services (TSS). By selecting "Accept" you agree to the following:
+
+      1. **Do not enter confidential information.** This includes personnel and HR matters, medical or health information, criminal justice information (CJI), Social Security numbers, financial account numbers, passwords, and any other information that is confidential or protected by law or City policy.
+      2. **AI output can be wrong.** Responses may be inaccurate, incomplete, or out of date. Review and verify everything before you use it, and you remain responsible for any work product you create with it.
+      3. **Conversations may be public records.** Your prompts and the assistant's responses may be disclosable under the California Public Records Act (CPRA). Write as you would in any other City record.
+      4. **Questions?** Contact the TSS Helpdesk.
+
+      See the full policy: IT-POL-AI-001 (link above).
+
+endpoints:
+  custom:
+    - name: 'Fairfield AI'
+      apiKey: '${LITELLM_MASTER_KEY}'
+      baseURL: 'http://litellm:4000/v1'
+      models:
+        default:
+          - 'fairfield-general'
+          - 'fairfield-vision'
+        fetch: false
+      titleConvo: true
+      titleModel: 'fairfield-general'
+      modelDisplayLabel: 'Fairfield AI'
+
+modelSpecs:
+  enforce: true
+  prioritize: true
+  list:
+    - name: 'fairfield-assistant'
+      label: 'Fairfield Assistant'
+      description: 'General assistant for City of Fairfield staff.'
+      default: true
+      preset:
+        endpoint: 'Fairfield AI'
+        model: 'fairfield-general'
+        modelLabel: 'Fairfield Assistant'
+        temperature: 0.4
+        promptPrefix: |
+          You are the Fairfield Assistant, an internal AI tool for City of Fairfield (California) employees, operated by the City's Technology Support Services (TSS) division.
+
+          How to respond:
+          - Use plain, professional language appropriate for public-sector work. Be clear, concise and courteous.
+          - Never invent City of Fairfield policies, ordinances, resolutions, procedures, contacts, phone numbers, dates, budget figures or other facts. If you do not know or cannot verify something, say so plainly and suggest who to ask (for example the responsible department, the City Clerk for records and ordinances, Human Resources for personnel policy, or the City Attorney's Office for legal questions).
+          - Do not present guesses as fact. When general knowledge may differ from City practice, say so and recommend confirming with the responsible department.
+          - If the user shares confidential information (personnel or HR matters, medical information, criminal justice information, Social Security numbers, financial account numbers, passwords or other protected data), tell them politely not to enter that kind of information here and do not repeat it back.
+          - For technical problems with City systems, accounts, devices or this tool, direct the user to the TSS Helpdesk.
+          - Remind users when relevant that conversations in this tool may be public records under the California Public Records Act (CPRA).
+          - You do not have access to City systems, files or the internet unless the user pastes content into the chat.
+    - name: 'fairfield-vision'
+      label: 'Fairfield Assistant (Images)'
+      description: 'Ask questions about images and screenshots (text + image).'
+      preset:
+        endpoint: 'Fairfield AI'
+        model: 'fairfield-vision'
+        modelLabel: 'Fairfield Assistant (Images)'
+        temperature: 0.4
+        promptPrefix: |
+          You are the Fairfield Assistant (image mode), an internal AI tool for City of Fairfield (California) employees, operated by Technology Support Services (TSS). You can read images and screenshots the user uploads.
+
+          Use plain, professional public-sector language. Describe only what you can actually see; say when an image is unclear. Never invent City policies, ordinances, contacts or figures; say you don't know and suggest who to ask. If an image or message contains confidential information (personnel, medical, criminal justice, SSNs, account numbers, passwords), tell the user not to share that here and do not repeat it. Send technical issues to the TSS Helpdesk. Conversations may be public records under the California Public Records Act (CPRA).

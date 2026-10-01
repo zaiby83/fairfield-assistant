@@ -1,0 +1,25 @@
+# Fairfield AI Assistant - LiteLLM proxy config (DEV)
+# Image: ghcr.io/berriai/litellm:v1.103.2. Docs: https://docs.litellm.ai/docs/providers/vllm
+# Secrets come from the environment only:
+#   VLLM_API_KEY        - from ~/fairfield-assistant/.env (env_file in the override)
+#   LITELLM_MASTER_KEY  - from LibreChat/.env (LibreChat uses it to call this proxy)
+
+model_list:
+  - model_name: fairfield-general
+    litellm_params:
+      model: hosted_vllm/gpt-oss-120b
+      api_base: http://192.168.250.1:8000/v1
+      api_key: os.environ/VLLM_API_KEY
+  - model_name: fairfield-vision
+    litellm_params:
+      model: hosted_vllm/gemma4-26b
+      api_base: http://192.168.250.1:8001/v1
+      api_key: os.environ/VLLM_API_KEY
+    model_info:
+      supports_vision: true
+
+litellm_settings:
+  drop_params: true
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY

@@ -1,0 +1,43 @@
+# Fairfield AI Assistant - LibreChat compose override (DEV)
+# Tracked at ~/fairfield-assistant/frontend/; LibreChat/docker-compose.override.yml is a symlink to it.
+# Relative paths resolve against the LibreChat/ project directory.
+# Docs: https://www.librechat.ai/docs/configuration/docker_override
+
+services:
+  api:
+    # Pin the v0.8.8 release image (the base file defaults to librechat-dev:latest).
+    image: registry.librechat.ai/librechat-ai/librechat:v0.8.8
+    # Loopback only on the Mac.
+    ports: !override
+      - "127.0.0.1:${PORT:-3080}:${PORT:-3080}"
+    depends_on:
+      - litellm
+    volumes:
+      - type: bind
+        source: ../frontend/librechat.yaml
+        target: /app/librechat.yaml
+        read_only: true
+
+  admin-panel:
+    ports: !override
+      - "127.0.0.1:${ADMIN_PANEL_PORT:-3000}:3000"
+
+  litellm:
+    container_name: litellm
+    # v1.103.2 (same digest as main-stable on 2026-10-01); multi-arch incl. linux/arm64.
+    image: ghcr.io/berriai/litellm:v1.103.2@sha256:f63fb81b831b170ec16851e23c36ac5bf52ef106b271406429524a2ed730bbfd
+    restart: always
+    command: ["--config", "/app/config.yaml", "--port", "4000"]
+    # Published on the Mac loopback only (inside the compose network the proxy
+    # must listen on the container interface so the api service can reach it).
+    ports:
+      - "127.0.0.1:4000:4000"
+    env_file:
+      - ../.env # VLLM_API_KEY (project secrets file, gitignored)
+    environment:
+      - LITELLM_MASTER_KEY=${LITELLM_MASTER_KEY}
+    volumes:
+      - type: bind
+        source: ../frontend/litellm-config.yaml
+        target: /app/config.yaml
+        read_only: true

@@ -1,0 +1,31 @@
+# ---- Secrets (never commit) ----
+.env
+**/.env
+.env.*
+!.env.example
+**/.env.example.local
+vllm.env
+hf.env
+*.key
+*.pem
+*.p12
+
+# ---- LibreChat upstream clone (pinned in frontend/LIBRECHAT_VERSION) ----
+/LibreChat/
+
+# ---- Data volumes / runtime state ----
+data/
+data-node/
+meili_data*/
+pgdata*/
+uploads/
+images/
+volumes/
+
+# ---- Logs ----
+logs/
+*.log
+
+# ---- OS / editor ----
+.DS_Store
+*.swp
