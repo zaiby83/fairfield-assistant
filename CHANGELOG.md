@@ -71,3 +71,8 @@ Changes:
 - [Mac] git init (branch main) ~/fairfield-assistant; added .gitignore, README.md; files staged, NOT committed.
 - [Mac] Installed shellcheck 0.11.0 via Homebrew (user approved). `shellcheck -x` on spark/*.sh: one SC2054 false positive
   (comma-separated --mxfp4-layers value) fixed by quoting "moe,qkv,o,lm_head"; now clean. Re-copied start-vllm.sh to the Spark (sha256 verified). Still NOT run.
+- [Spark] Downloads complete 2026-10-01 13:57 PDT (~36 min, 80 GiB in ~/.cache/huggingface/hub, 0 incomplete blobs):
+  openai/gpt-oss-120b rev b5c939de8f754692c1647ca79fbf85e8c1e70f8a (65.28 GB, 15 safetensors)
+  nvidia/Gemma-4-26B-A4B-NVFP4 rev a19cfe00be84568a6867111c9a68c9c44fdcffe6 (18.83 GB, 2 safetensors)
+  google/gemma-4-26B-A4B-it-assistant rev 6e5aaaf4c42b98394530b8fda2e95cadd65c151c (0.87 GB)
+  Disk: / 138G used, 3.4T free.
