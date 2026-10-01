@@ -190,3 +190,48 @@ Still open:
   Palatino). Nothing downloaded; fonts not redistributed.
 - [Mac] theme-color #365f9f in manifest.webmanifest and the index.html patch in docker-compose.override.yml.
 - [Mac] Recreated LibreChat; checked light + dark in the browser.
+
+## 2026-10-01 — Approved exception: read-only access to two City sites (session "Internet connectivity check")
+Requirement (user): the assistant must be able to read the City website. User chose: only www.fairfield.ca.gov and
+pub-fairfield.escribemeetings.com, read-only, logged. Everything else stays air-gapped.
+
+Findings:
+- www.fairfield.ca.gov (Akamai) returns 403 to curl (default and browser User-Agent, from both hotspot and City
+  egress 50.201.161.6) and to headless Chromium (Playwright 1.63, tested on the Spark, image removed afterwards).
+  It returned 200 to the city-web tool's honest User-Agent `FairfieldAIAssistant/1.0 (City of Fairfield TSS; read-only)`.
+- eScribe: search (`POST /GetSearchData.asmx/GetSearchMeetingData`) and Meeting.aspx pages work. Document downloads
+  (`FileStream.ashx`, agenda-package PDFs) sit behind a Cloudflare "Verifying your browser" check (403). Not worked around;
+  the tool returns a message telling the user to open the link, and telling TSS to ask eScribe to allowlist the assistant.
+
+Changes:
+- [Mac] New frontend/city-web/: server.py (MCP server, mcp 2.2.0 MCPServer, streamable HTTP, stateless; tools
+  search_meeting_documents / find_in_document / read_city_page; host allowlist + per-redirect re-check, https only,
+  GET only apart from the eScribe search endpoint, 100 MB cap, JSONL audit log with the X-LibreChat-User header),
+  Dockerfile (python:3.13-slim, non-root uid 10001), requirements.txt (pinned from pip freeze), squid.conf
+  (CONNECT :443 to the two hosts only, forwarded_for delete, via off, no cache, access log).
+- [Spark] Built fairfield/city-web:1.0 in ~/fairfield-build/city-web; pulled
+  ubuntu/squid@sha256:6a097f68…e029 (Squid 6.13, tagged ubuntu/squid:6.13-24.04); functional test on a scratch
+  network (search, agenda page, fairfield.ca.gov page, blocked example.com / http:// / look-alike host); removed
+  test containers, network and the :dev image. Both images moved to the Mac with docker save | docker load.
+- [Mac] frontend/docker-compose.override.yml: new internal network `webtools`; new services `city-web`
+  (default + webtools, HTTPS_PROXY=http://webproxy:3128, logs -> LibreChat/logs/city-web) and `webproxy`
+  (webtools + egress, squid.conf mounted read-only, logs -> LibreChat/logs/webproxy); api depends_on city-web.
+- [Mac] frontend/librechat.yaml: mcpSettings.allowedAddresses [city-web:8000]; mcpServers.city-web
+  (streamable-http, chatMenu false, serverInstructions, timeout 180 s, requestHeaders X-LibreChat-User =
+  {{LIBRECHAT_USER_EMAIL}}); spec fairfield-assistant pins mcpServers [city-web]; its promptPrefix now describes the two
+  sites, forbids confidential search terms, and says to give the link when a site refuses;
+  interface.mcpServers use false -> true with create/share/public false.
+- Debugging, in order: (1) `headers` with a user placeholder made LibreChat skip tool discovery at startup, fixed by
+  using `requestHeaders`. (2) interface.mcpServers.use:false removes the MCP_SERVERS USE permission, which filters out
+  even spec-pinned tools (ToolService.js canUseServers), fixed by setting use: true. While the pin was failing, General chats returned
+  "configured to use MCP tools, but none are available" (seen for 2 users around 22:02–22:05 UTC); the pin was removed
+  within minutes each time until fixed.
+
+Verified:
+- Browser chat as the test user: the model called search_meeting_documents ×4, read_city_page ×3 and find_in_document ×1. The audit log
+  records each call with the user's email, and the Squid log shows only pub-fairfield.escribemeetings.com:443 CONNECTs.
+  The answer correctly reported the Dec 2 2025 item 12.1/L.1 "Measure P Oversight Committee Annual Report", but it also
+  produced table rows with placeholder links ("Id=??") that the tools didn't provide. Model reliability on tool results
+  still needs work.
+- city-web cannot connect directly (1.1.1.1, www.fairfield.ca.gov, 192.168.250.1 all blocked); via the proxy,
+  example.com and www.google.com get 403 and are logged TCP_DENIED; the api container cannot reach webproxy.

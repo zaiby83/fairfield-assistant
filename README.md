@@ -38,6 +38,31 @@ No City data may leave the City, and no component may call an external service.
 - **Check egress:** from any container except `gateway`, `bash -c 'exec 3<>/dev/tcp/1.1.1.1/443'` must fail. See CHANGELOG ("Air gap for CJIS") for the full check.
 - **Still open:** the Spark is on COF-P Wi-Fi with an internet route, and the Mac uses a hotspot. The containers can't use either route, but the hosts themselves can.
 
+### Approved exception: two public City sites (read-only)
+
+Approved by the user on 2026-10-01. TSS should approve it in writing before production. The Fairfield Assistant model spec can read **www.fairfield.ca.gov** and **pub-fairfield.escribemeetings.com**, and nothing else.
+
+```
+ api ──(MCP, pinned to the spec)──► city-web ──► webproxy (Squid) ──► those two sites only
+       [default, internal]           [default + webtools]   [webtools + egress]
+```
+
+- **`city-web`** (`frontend/city-web/server.py`) is an MCP server with three tools: `search_meeting_documents` (eScribe search), `find_in_document` and `read_city_page`. It allows only https URLs on the two hosts and checks every redirect. It is GET-only, apart from the eScribe search endpoint. It identifies itself honestly (`FairfieldAIAssistant/1.0`) and **never works around bot protection**.
+- **`webproxy`** allows only `CONNECT :443` to the two hosts and refuses everything else. It strips `X-Forwarded-For`/`Via`. Only `city-web` can reach it, via the internal `webtools` network.
+- **Audit logs:**
+  - `LibreChat/logs/city-web/audit.jsonl`: time, LibreChat user email, tool, exact URL or search text, outcome.
+  - `LibreChat/logs/webproxy/access.log`: every connection, allowed or denied.
+- **What leaves the City:** only the URL or search words the tool sends. The prompt tells the model never to search with names or confidential details.
+- **LibreChat settings this needs:**
+  - `interface.mcpServers.use: true`, because the USE permission gates even operator-pinned MCP tools. `create`, `share` and `public` stay `false`.
+  - `chatMenu: false`, which keeps city-web out of the picker.
+  - `requestHeaders`, not `headers`, for the user placeholder. A placeholder in `headers` makes LibreChat skip tool discovery.
+- **Blocked by bot protection (needs the site operator):**
+  - eScribe document downloads (`FileStream.ashx`, the agenda-package PDFs) sit behind a Cloudflare browser check and return 403. TSS can ask eScribe to allowlist the assistant. eScribe search and meeting agenda pages work.
+  - fairfield.ca.gov (Akamai) currently accepts the tool. It blocks curl and headless browsers.
+- **Rebuild city-web:** copy `frontend/city-web/` to the Spark, then run `docker build -t fairfield/city-web:<ver> .` and `docker save | docker load` onto the Mac. Bump the tag in the override.
+- **Remove the exception:** delete the `city-web` and `webproxy` services, and the `mcpSettings`/`mcpServers` blocks and spec pin in `librechat.yaml`.
+
 ## Repository layout
 
 | Path | Purpose |

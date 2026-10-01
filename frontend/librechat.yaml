@@ -8,9 +8,9 @@ version: 1.3.17
 cache: true
 
 interface:
-  customWelcome: 'Welcome to the Fairfield AI Assistant 👋 — built by TSS for City of Fairfield staff.'
+  customWelcome: 'Welcome to the Fairfield AI Assistant — built by TSS for City of Fairfield staff.'
   # Staff UI: chat + model picker + uploads only
-  modelSelect: true
+  modelSelect: false # model specs only; no raw endpoint models (they skip the specs' system prompts)
   endpointsMenu: false
   fileSearch: true
   fileCitations: true
@@ -27,8 +27,14 @@ interface:
   webSearch: false
   marketplace:
     use: false
+  # `use` must be true for the operator-pinned city-web tool to load (the USE
+  # permission gates ALL MCP tools, pinned or not). Staff still can't add,
+  # share or publish servers, and city-web is hidden from the picker (chatMenu: false).
   mcpServers:
-    use: false
+    use: true
+    create: false
+    share: false
+    public: false
   skills: false
   schedules:
     use: false
@@ -82,15 +88,41 @@ fileConfig:
         - "image/.*"
   serverFileSizeLimit: 100
 
+# Approved exception to the air gap (user, 2026-10-01): read-only access to two
+# public City sites through the `city-web` MCP server (frontend/city-web/), which
+# reaches the internet only via the allowlisting `webproxy`. It is pinned to the
+# Fairfield Assistant model spec below; the chat MCP picker stays hidden
+# (interface.mcpServers.use: false, chatMenu: false).
+mcpSettings:
+  allowedAddresses:
+    - 'city-web:8000'
+
+mcpServers:
+  city-web:
+    type: streamable-http
+    url: 'http://city-web:8000/mcp'
+    title: 'City websites'
+    description: 'Read-only search of www.fairfield.ca.gov and the eScribe agendas/minutes portal.'
+    chatMenu: false
+    serverInstructions: true
+    timeout: 180000
+    # Per-chat header (requestHeaders, not headers: a user placeholder in `headers`
+    # makes LibreChat skip loading the tool list at startup). Recorded in the
+    # city-web audit log for every request.
+    requestHeaders:
+      X-LibreChat-User: '{{LIBRECHAT_USER_EMAIL}}'
+
 modelSpecs:
   enforce: true
   prioritize: true
   list:
     - name: 'fairfield-assistant'
-      label: 'Fairfield Assistant'
+      label: 'General'
       iconURL: '/assets/icon-192x192.png'
-      description: 'General assistant for City of Fairfield staff.'
+      description: 'Writing, summaries and City questions.'
       default: true
+      mcpServers:
+        - 'city-web'
       preset:
         endpoint: 'Fairfield AI'
         model: 'fairfield-general'
@@ -106,11 +138,13 @@ modelSpecs:
           - If the user shares confidential information (personnel or HR matters, medical information, criminal justice information, Social Security numbers, financial account numbers, passwords or other protected data), tell them politely not to enter that kind of information here and do not repeat it back.
           - For technical problems with City systems, accounts, devices or this tool, direct the user to the TSS Helpdesk.
           - Remind users when relevant that conversations in this tool may be public records under the California Public Records Act (CPRA).
-          - You do not have access to City systems, files or the internet unless the user pastes content into the chat.
+          - You have no access to City systems or the internet in general. You can read only two public City websites, through your City website tools: www.fairfield.ca.gov and the agendas/minutes portal pub-fairfield.escribemeetings.com. Use them for questions about City meetings, agendas, minutes, and public City information. Cite the link for every fact you take from them.
+          - Searches you run with those tools are sent to the public websites. Never put names, personal details, case details or any confidential information into a search. Use only general topic words (for example "Measure P").
+          - If a tool says a site refused the request, tell the user plainly and give them the link to open in their own browser. Do not guess the contents.
     - name: 'fairfield-vision'
-      label: 'Fairfield Assistant (Images)'
+      label: 'Images & screenshots'
       iconURL: '/assets/icon-192x192.png'
-      description: 'Ask questions about images and screenshots (text + image).'
+      description: 'Reads images and screenshots you upload.'
       preset:
         endpoint: 'Fairfield AI'
         model: 'fairfield-vision'

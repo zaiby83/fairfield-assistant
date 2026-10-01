@@ -9,10 +9,20 @@
 # also joins `egress`, and it runs only fixed socat forwards:
 #   ingress: Mac 127.0.0.1:3080/3000/4000 -> api / admin-panel / litellm
 #   egress : gateway:8000/8001 -> 192.168.250.1:8000/8001 (the Spark over the direct cable, nothing else)
-# No other service publishes ports or joins `egress`.
+#
+# APPROVED EXCEPTION (user, 2026-10-01): read-only access to two public City
+# sites, www.fairfield.ca.gov and pub-fairfield.escribemeetings.com.
+#   api -> city-web (MCP tool; allowlist, GET-only, audit log) -> webproxy (Squid;
+#   CONNECT :443 to those two hosts only, access log) -> internet.
+# `webproxy` is the only other service on `egress`. It sits on its own
+# internal `webtools` network that only `city-web` shares, so nothing else can
+# reach it.
+# Audit logs: LibreChat/logs/city-web/audit.jsonl, LibreChat/logs/webproxy/access.log
 
 networks:
   default:
+    internal: true
+  webtools:
     internal: true
   egress: {}
 
@@ -45,6 +55,7 @@ services:
     ports: !reset []
     depends_on:
       - litellm
+      - city-web
     volumes:
       - type: bind
         source: ../frontend/librechat.yaml
@@ -107,6 +118,38 @@ services:
       - OLLAMA_KEEP_ALIVE=24h
     volumes:
       - ./ollama_data:/root/.ollama
+
+  city-web:
+    container_name: city-web
+    # Built from frontend/city-web/ on the Spark, moved with docker save/load
+    # (see CHANGELOG). MCP server (streamable HTTP, :8000/mcp) used by the
+    # Fairfield Assistant model spec.
+    image: fairfield/city-web:1.0
+    pull_policy: never
+    restart: always
+    networks: [default, webtools]
+    depends_on:
+      - webproxy
+    environment:
+      - HTTPS_PROXY=http://webproxy:3128
+      - NO_PROXY=
+    volumes:
+      - ./logs/city-web:/logs
+
+  webproxy:
+    container_name: webproxy
+    # ubuntu/squid:6.13-24.04 = ubuntu/squid@sha256:6a097f68bae708cedbabd6188d68c7e2e7a38cedd05a176e1cc0ba29e3bbe029
+    # (pulled on the Spark, moved with docker save/load).
+    image: ubuntu/squid:6.13-24.04
+    pull_policy: never
+    restart: always
+    networks: [webtools, egress]
+    volumes:
+      - type: bind
+        source: ../frontend/city-web/squid.conf
+        target: /etc/squid/squid.conf
+        read_only: true
+      - ./logs/webproxy:/var/log/squid
 
   litellm:
     container_name: litellm
