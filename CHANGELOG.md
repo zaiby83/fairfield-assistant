@@ -90,3 +90,15 @@ Changes:
   vllm-gemma  ready 150s — weights 18.16 GiB, KV 3.39 GiB = 56,291 tokens (1.72x @ 32,768). Host RAM available after: ~9 GiB.
 - [Verify from Mac] Listening only on 192.168.250.1:8000/:8001 (ss). No key -> 401; with key -> gpt-oss-120b (65536), gemma4-26b (32768).
   Single-stream decode: gpt-oss-120b ~35 tok/s (TTFT ~0.2s); gemma4-26b ~30 tok/s (TTFT ~0.1s). Gemma vision PASS (red/blue test PNG described correctly).
+
+## 2026-10-01 — City of Fairfield branding (Mac)
+- [Mac] New frontend/branding/: City seal as logo.svg, favicons, apple-touch/192/maskable icons (from the City's
+  seal artwork, cropped/resized with sips); manifest.webmanifest renamed "Fairfield AI Assistant", theme #188446.
+- [Mac] fairfield-theme.css: green theme (#188446, sampled from the seal; white on it 4.7:1) overriding LibreChat
+  v0.8.8 CSS variables in light + dark, plus #send-button (painted with bg-text-primary, not --surface-submit).
+- [Mac] docker-compose.override.yml: bind-mount the branding files over client/dist; api `command` patches
+  index.html at start (theme <link> with ?v=<cksum> cache-buster, <title>, theme-color) then `npm run backend`.
+  No image rebuild. Re-check the variable names when upgrading past v0.8.8.
+- [Mac] librechat.yaml: iconURL /assets/icon-192x192.png on the endpoint and both model specs.
+- [Mac] Recreated LibreChat (`docker compose up -d --force-recreate api`); verified served assets match, theme
+  applied in light and dark, send button green. Committed f400da2.
