@@ -1,0 +1,61 @@
+/*
+ * City of Fairfield colour theme for LibreChat v0.8.8.
+ * Overrides the client's RGB-triplet CSS variables (see the `html{...}` and
+ * `.dark{...}` blocks in client/dist/assets/index.*.css). Injected into
+ * index.html at container start by the api `command` in docker-compose.override.yml.
+ * Selectors use `html:root:not(.dark)` / `html.dark` so they outrank the bundle's
+ * `html` / `.dark` without the light tints leaking into dark mode.
+ *
+ * Fairfield green #188446 (24 132 70), sampled from the City seal.
+ * White on #188446 is 4.7:1 (WCAG AA for normal text).
+ */
+
+html:root:not(.dark) {
+  --brand-purple: 24 132 70;
+  --accent-primary: 24 132 70;
+  --accent-primary-hover: 17 104 55;
+  --ring-primary: 24 132 70;
+  --link: 24 132 70;
+  --link-hover: 17 104 55;
+
+  --surface-submit: 24 132 70;
+  --surface-submit-hover: 17 104 55;
+
+  /* Light green tints for the sidebar, selected and hovered items */
+  --surface-primary-alt: 243 248 244;
+  --surface-secondary: 243 248 244;
+  --surface-active: 225 241 230;
+  --surface-active-alt: 208 232 216;
+  --surface-hover: 222 239 228;
+  --surface-hover-alt: 200 226 209;
+
+  --status-success: 24 132 70;
+}
+
+html.dark {
+  --brand-purple: 92 196 128;
+  --accent-primary: 92 196 128;
+  --accent-primary-hover: 130 214 158;
+  --ring-primary: 92 196 128;
+  --link: 110 205 140;
+  --link-hover: 150 222 172;
+
+  --surface-submit: 24 132 70;
+  --surface-submit-hover: 17 104 55;
+
+  /* Subtle green tint on selected items; base surfaces stay neutral grey */
+  --surface-active: 36 84 54;
+  --surface-active-alt: 30 62 42;
+}
+
+/* The send button is painted with `bg-text-primary` (inverted text colour),
+   not --surface-submit, so recolour it directly in both modes. */
+#send-button {
+  background-color: rgb(24 132 70);
+}
+#send-button:not(:disabled):hover {
+  background-color: rgb(17 104 55);
+}
+#send-button svg {
+  color: rgb(255 255 255);
+}

@@ -17,6 +17,34 @@ services:
         source: ../frontend/librechat.yaml
         target: /app/librechat.yaml
         read_only: true
+      # City of Fairfield branding: replace the stock LibreChat logo, favicons
+      # and PWA manifest (none of these have precompressed .gz/.br siblings).
+      - { type: bind, read_only: true, source: ../frontend/branding/logo.svg, target: /app/client/dist/assets/logo.svg }
+      - { type: bind, read_only: true, source: ../frontend/branding/favicon-16x16.png, target: /app/client/dist/assets/favicon-16x16.png }
+      - { type: bind, read_only: true, source: ../frontend/branding/favicon-32x32.png, target: /app/client/dist/assets/favicon-32x32.png }
+      - { type: bind, read_only: true, source: ../frontend/branding/apple-touch-icon-180x180.png, target: /app/client/dist/assets/apple-touch-icon-180x180.png }
+      - { type: bind, read_only: true, source: ../frontend/branding/icon-192x192.png, target: /app/client/dist/assets/icon-192x192.png }
+      - { type: bind, read_only: true, source: ../frontend/branding/maskable-icon.png, target: /app/client/dist/assets/maskable-icon.png }
+      - { type: bind, read_only: true, source: ../frontend/branding/manifest.webmanifest, target: /app/client/dist/manifest.webmanifest }
+      - { type: bind, read_only: true, source: ../frontend/branding/fairfield-theme.css, target: /app/client/dist/assets/fairfield-theme.css }
+    # Same as the image's CMD (`npm run backend`), but first patch the shell
+    # index.html: link the Fairfield colour theme after the bundled CSS, and set
+    # the pre-JS <title> and theme-color. The server reads index.html once at
+    # startup and serves it from memory (the stale index.html.gz/.br are never
+    # served). Assets are cached for 2 days, so the link carries a checksum of the
+    # CSS (`?v=`); any old link is stripped first so restarts don't patch twice.
+    command:
+      - sh
+      - -c
+      - >-
+        v=$$(cksum < client/dist/assets/fairfield-theme.css | cut -d' ' -f1) &&
+        sed -i
+        -e 's#<link rel="stylesheet" href="./assets/fairfield-theme.css[^>]*>##'
+        -e "s#</head>#<link rel=\"stylesheet\" href=\"./assets/fairfield-theme.css?v=$$v\"></head>#"
+        -e 's#<title>LibreChat</title>#<title>Fairfield AI Assistant</title>#'
+        -e 's#name="theme-color" content="[^"]*"#name="theme-color" content="\#188446"#'
+        client/dist/index.html;
+        exec npm run backend
 
   admin-panel:
     ports: !override

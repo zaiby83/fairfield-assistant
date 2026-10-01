@@ -39,6 +39,7 @@ endpoints:
       titleConvo: true
       titleModel: 'fairfield-general'
       modelDisplayLabel: 'Fairfield AI'
+      iconURL: '/assets/icon-192x192.png'
 
 modelSpecs:
   enforce: true
@@ -46,6 +47,7 @@ modelSpecs:
   list:
     - name: 'fairfield-assistant'
       label: 'Fairfield Assistant'
+      iconURL: '/assets/icon-192x192.png'
       description: 'General assistant for City of Fairfield staff.'
       default: true
       preset:
@@ -66,6 +68,7 @@ modelSpecs:
           - You do not have access to City systems, files or the internet unless the user pastes content into the chat.
     - name: 'fairfield-vision'
       label: 'Fairfield Assistant (Images)'
+      iconURL: '/assets/icon-192x192.png'
       description: 'Ask questions about images and screenshots (text + image).'
       preset:
         endpoint: 'Fairfield AI'
