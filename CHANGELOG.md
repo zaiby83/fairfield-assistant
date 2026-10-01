@@ -76,3 +76,17 @@ Changes:
   nvidia/Gemma-4-26B-A4B-NVFP4 rev a19cfe00be84568a6867111c9a68c9c44fdcffe6 (18.83 GB, 2 safetensors)
   google/gemma-4-26B-A4B-it-assistant rev 6e5aaaf4c42b98394530b8fda2e95cadd65c151c (0.87 GB)
   Disk: / 138G used, 3.4T free.
+
+## 2026-10-01 — Phase 4: Spark serving (taken over in main session)
+- [Spark] Reviewed spark/start-vllm.sh + stop-vllm.sh from the prep session; sha256 Mac == Spark. Ran start-vllm.sh 13:59 (log ~/fairfield-logs/start-vllm.log).
+- [Spark] vllm-gptoss FAILED at --gpu-memory-utilization 0.55: weights 66.14 GiB; "Available KV cache memory" -8.65 GiB (cold) / -4.46 GiB (warm restart).
+  Container crash-looped under --restart unless-stopped; stopped + removed with stop-vllm.sh (14:0x). Gemma never started. No other changes.
+- [Mac] spark/start-vllm.sh (user approved): GPTOSS_GPU_UTIL 0.55->0.65, GEMMA_GPU_UTIL 0.25->0.22; mount ~/.cache/vllm and
+  ~/.cache/flashinfer (paths verified in image: VLLM_CACHE_ROOT=/root/.cache/vllm, FlashInfer JIT /root/.cache/flashinfer/...);
+  on failure/restart before ready: save full log to ~/fairfield-logs/<name>-failed-<ts>.log and `docker rm -f` the container.
+  bash -n + shellcheck clean; copied to Spark (sha256 9c78613861520c95… both sides).
+- [Spark] Created ~/.cache/vllm, ~/.cache/flashinfer (by script). Ran start-vllm.sh 14:04:
+  vllm-gptoss ready 110s — weights 66.14 GiB, KV 4.26 GiB = 198,013 tokens (3.02x @ 65,536).
+  vllm-gemma  ready 150s — weights 18.16 GiB, KV 3.39 GiB = 56,291 tokens (1.72x @ 32,768). Host RAM available after: ~9 GiB.
+- [Verify from Mac] Listening only on 192.168.250.1:8000/:8001 (ss). No key -> 401; with key -> gpt-oss-120b (65536), gemma4-26b (32768).
+  Single-stream decode: gpt-oss-120b ~35 tok/s (TTFT ~0.2s); gemma4-26b ~30 tok/s (TTFT ~0.1s). Gemma vision PASS (red/blue test PNG described correctly).

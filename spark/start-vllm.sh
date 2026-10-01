@@ -28,6 +28,10 @@ set -euo pipefail
 BIND_HOST="192.168.250.1"            # mac-direct link only. Never 0.0.0.0.
 ENV_FILE="${ENV_FILE:-$HOME/vllm.env}"
 HF_CACHE="${HF_CACHE:-$HOME/.cache/huggingface}"
+# Persist torch.compile / CUDA-graph and FlashInfer JIT artifacts across container restarts
+# (cold starts need ~4 GiB more memory and several extra minutes).
+VLLM_CACHE="${VLLM_CACHE:-$HOME/.cache/vllm}"
+FLASHINFER_CACHE="${FLASHINFER_CACHE:-$HOME/.cache/flashinfer}"
 READY_TIMEOUT="${READY_TIMEOUT:-1800}" # seconds per model (first load + compile can be slow)
 
 GPTOSS_IMAGE="${GPTOSS_IMAGE:-vllm-node}"
@@ -35,7 +39,7 @@ GPTOSS_NAME="vllm-gptoss"
 GPTOSS_MODEL="openai/gpt-oss-120b"
 GPTOSS_SERVED="gpt-oss-120b"
 GPTOSS_PORT=8000
-GPTOSS_GPU_UTIL="${GPTOSS_GPU_UTIL:-0.55}"
+GPTOSS_GPU_UTIL="${GPTOSS_GPU_UTIL:-0.65}"   # 0.55 failed: 66.14 GiB weights left no KV cache (see CHANGELOG)
 GPTOSS_MAX_LEN="${GPTOSS_MAX_LEN:-65536}"
 GPTOSS_LOAD_FORMAT="${GPTOSS_LOAD_FORMAT:-fastsafetensors}"
 GPTOSS_MXFP4_FLAGS="${GPTOSS_MXFP4_FLAGS:-0}"
@@ -45,7 +49,7 @@ GEMMA_NAME="vllm-gemma"
 GEMMA_MODEL="nvidia/Gemma-4-26B-A4B-NVFP4"
 GEMMA_SERVED="gemma4-26b"
 GEMMA_PORT=8001
-GEMMA_GPU_UTIL="${GEMMA_GPU_UTIL:-0.25}"
+GEMMA_GPU_UTIL="${GEMMA_GPU_UTIL:-0.22}"     # total with gpt-oss = 0.87; leaves ~15 GiB for OS/Docker
 GEMMA_MAX_LEN="${GEMMA_MAX_LEN:-32768}"
 GEMMA_LOAD_FORMAT="${GEMMA_LOAD_FORMAT:-instanttensor}"
 GEMMA_MTP="${GEMMA_MTP:-0}"
@@ -74,6 +78,8 @@ if [[ "$GEMMA_MTP" == "1" ]]; then
   model_cached "$GEMMA_MTP_MODEL" || die "GEMMA_MTP=1 but $GEMMA_MTP_MODEL is not fully cached"
 fi
 
+mkdir -p "$VLLM_CACHE" "$FLASHINFER_CACHE"
+
 for n in "$GPTOSS_NAME" "$GEMMA_NAME"; do
   if docker container inspect "$n" >/dev/null 2>&1; then
     die "container $n already exists; run ./stop-vllm.sh first"
@@ -81,15 +87,27 @@ for n in "$GPTOSS_NAME" "$GEMMA_NAME"; do
 done
 
 # ---------- helpers ----------
+# On failure, keep the full log on disk and remove the container so
+# --restart unless-stopped can't crash-loop it.
+abort_container() { # name reason
+  local name="$1" logf
+  logf="$HOME/fairfield-logs/${name}-failed-$(date +%Y%m%d-%H%M%S).log"
+  mkdir -p "$(dirname "$logf")"
+  docker logs "$name" >"$logf" 2>&1 || true
+  log "$name: last log lines (full log: $logf):"
+  tail -n 40 "$logf"
+  docker rm -f "$name" >/dev/null 2>&1 || true
+  die "$2 ($name removed)"
+}
+
 wait_ready() { # name port
   local name="$1" port="$2" start=$SECONDS state
   log "waiting for $name on http://${BIND_HOST}:${port}/v1/models (timeout ${READY_TIMEOUT}s)"
   while (( SECONDS - start < READY_TIMEOUT )); do
     state="$(docker container inspect -f '{{.State.Status}}' "$name" 2>/dev/null || echo missing)"
-    if [[ "$state" != "running" ]]; then
-      log "$name is '$state'; last log lines:"
-      docker logs --tail 80 "$name" 2>&1 || true
-      die "$name stopped before becoming ready"
+    if [[ "$state" != "running" ]] || \
+       [[ "$(docker container inspect -f '{{.RestartCount}}' "$name" 2>/dev/null || echo 0)" != "0" ]]; then
+      abort_container "$name" "$name exited/restarted before becoming ready (state '$state')"
     fi
     # Header comes from a process substitution so the key never appears in `ps`.
     if curl -fsS -m 5 -H @<(printf 'Authorization: Bearer %s\n' "$VLLM_API_KEY") \
@@ -99,9 +117,7 @@ wait_ready() { # name port
     fi
     sleep 10
   done
-  log "$name not ready after ${READY_TIMEOUT}s; last log lines:"
-  docker logs --tail 80 "$name" 2>&1 || true
-  die "timeout waiting for $name (container left running for inspection)"
+  abort_container "$name" "timeout after ${READY_TIMEOUT}s waiting for $name"
 }
 
 common_run_args=(
@@ -111,8 +127,15 @@ common_run_args=(
   --network host
   --restart unless-stopped
   -v "$HF_CACHE:/root/.cache/huggingface"
+  -v "$VLLM_CACHE:/root/.cache/vllm"
+  -v "$FLASHINFER_CACHE:/root/.cache/flashinfer"
   --env-file "$ENV_FILE"
   -e HF_HUB_OFFLINE=1
+  # No phone-home (CJIS: nothing leaves the city). vLLM otherwise posts hardware/config
+  # usage reports to stats.vllm.ai at start and every 10 minutes.
+  -e VLLM_NO_USAGE_STATS=1
+  -e DO_NOT_TRACK=1
+  -e HF_HUB_DISABLE_TELEMETRY=1
   --entrypoint vllm
 )
 
