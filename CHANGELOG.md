@@ -177,3 +177,16 @@ Still open:
 - Startup warning: modelSpecs.enforce "can conflict with" modelSelect. Expected: staff choose only between the two specs.
 - Already in the logs before this change: METRICS_SECRET unset; scheduler not started (no Redis). Schedules are now disabled anyway.
 - Acceptable-use text in librechat.yaml says not to enter CJI, which conflicts with the CJIS work. Needs a policy decision.
+
+## 2026-10-01 — Brand & Style Guide theme (Mac)
+- [Mac] Retheme to the City's Brand & Style Guide 2023 (~/Documents/Brand  Style Guide_2023.pdf), replacing the
+  seal-sampled green #188446 (not in the official palette). User chose Royal Blue as the main color.
+- [Mac] fairfield-theme.css: Royal Blue #365F9F for send button, links, focus, selected chat (white on it 6.4:1);
+  light mode sidebar 15% Cream, hover Light Moss, Moss Green #AAB058 rule under the top bar, Cream text selection,
+  Forest Green #187019 for success. Dark mode: Royal Blue buttons, links 143 160 210 (7:1), white edge around the
+  seal (guide: white-edge logo on dark; CSS stand-in until MOD supplies the artwork). Goldenrod unused (fails
+  contrast as text).
+- [Mac] Fonts per guide: Calibri body, Book Antiqua welcome line, local fonts only (fallbacks Carlito/Segoe UI,
+  Palatino). Nothing downloaded; fonts not redistributed.
+- [Mac] theme-color #365f9f in manifest.webmanifest and the index.html patch in docker-compose.override.yml.
+- [Mac] Recreated LibreChat; checked light + dark in the browser.

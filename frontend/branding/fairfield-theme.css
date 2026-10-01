@@ -1,61 +1,111 @@
 /*
- * City of Fairfield colour theme for LibreChat v0.8.8.
+ * City of Fairfield theme for LibreChat v0.8.8, per the City's Brand & Style
+ * Guide (2023): palette, typography and logo-on-dark rules.
+ *
  * Overrides the client's RGB-triplet CSS variables (see the `html{...}` and
  * `.dark{...}` blocks in client/dist/assets/index.*.css). Injected into
  * index.html at container start by the api `command` in docker-compose.override.yml.
  * Selectors use `html:root:not(.dark)` / `html.dark` so they outrank the bundle's
  * `html` / `.dark` without the light tints leaking into dark mode.
  *
- * Fairfield green #188446 (24 132 70), sampled from the City seal.
- * White on #188446 is 4.7:1 (WCAG AA for normal text).
+ * Brand palette (guide p.9)
+ *   Primary    Royal Blue   #365F9F  54 95 159   "main color used in graphics"
+ *              Forest Green #187019  24 112 25
+ *   Secondary  Goldenrod    #FBAF41  251 175 65   (never as text/under white text: 1.9:1)
+ *              Moss Green   #AAB058  170 176 88
+ *   Accent     Blue Gray    #7B8ABB  123 138 187
+ *              Cool Gray    #939599  147 149 153
+ *              Cream        #FFDBA9  255 219 169
+ *              Light Moss   #E4E7AB  228 231 171
+ *
+ * Contrast (WCAG AA): white on Royal Blue 6.4:1; Royal Blue on white 6.4:1;
+ * Forest Green on white 6.2:1; dark-mode links (143 160 210) on #212121 7:1.
  */
 
 html:root:not(.dark) {
-  --brand-purple: 24 132 70;
-  --accent-primary: 24 132 70;
-  --accent-primary-hover: 17 104 55;
-  --ring-primary: 24 132 70;
-  --link: 24 132 70;
-  --link-hover: 17 104 55;
+  --brand-purple: 54 95 159;
+  --accent-primary: 54 95 159;
+  --accent-primary-hover: 43 76 128;
+  --ring-primary: 54 95 159;
+  --link: 54 95 159;
+  --link-hover: 43 76 128;
 
-  --surface-submit: 24 132 70;
-  --surface-submit-hover: 17 104 55;
+  --surface-submit: 54 95 159;
+  --surface-submit-hover: 43 76 128;
 
-  /* Light green tints for the sidebar, selected and hovered items */
-  --surface-primary-alt: 243 248 244;
-  --surface-secondary: 243 248 244;
-  --surface-active: 225 241 230;
-  --surface-active-alt: 208 232 216;
-  --surface-hover: 222 239 228;
-  --surface-hover-alt: 200 226 209;
+  /* Sidebar: 15% Cream. Hover: Light Moss tint. Selected: 12% Royal Blue. */
+  --surface-primary-alt: 255 250 242;
+  --surface-secondary: 255 250 242;
+  --surface-hover: 242 243 213;
+  --surface-hover-alt: 228 231 171;
+  --surface-active: 231 236 243;
+  --surface-active-alt: 214 223 236;
 
-  --status-success: 24 132 70;
+  --status-success: 24 112 25;
+  --status-success-strong: 24 112 25;
 }
 
 html.dark {
-  --brand-purple: 92 196 128;
-  --accent-primary: 92 196 128;
-  --accent-primary-hover: 130 214 158;
-  --ring-primary: 92 196 128;
-  --link: 110 205 140;
-  --link-hover: 150 222 172;
+  --brand-purple: 143 160 210;
+  --accent-primary: 143 160 210;
+  --accent-primary-hover: 180 192 228;
+  --ring-primary: 123 138 187;
+  --link: 143 160 210;
+  --link-hover: 180 192 228;
 
-  --surface-submit: 24 132 70;
-  --surface-submit-hover: 17 104 55;
+  --surface-submit: 54 95 159;
+  --surface-submit-hover: 43 76 128;
 
-  /* Subtle green tint on selected items; base surfaces stay neutral grey */
-  --surface-active: 36 84 54;
-  --surface-active-alt: 30 62 42;
+  /* Subtle Royal Blue tint on selected items; base surfaces stay neutral grey */
+  --surface-active: 44 58 84;
+  --surface-active-alt: 36 46 64;
+}
+
+/* Typography (guide p.10): Calibri body, Book Antiqua headlines. Local fonts
+   only (installed with Windows/Office; Palatino is the macOS equivalent of
+   Book Antiqua) - nothing is downloaded, and the fonts aren't redistributed. */
+html:root {
+  --theme-font-family: Calibri, Carlito, 'Segoe UI', system-ui, sans-serif;
+}
+html:root body {
+  font-family: var(--theme-font-family);
+}
+/* Welcome line on the new-chat screen */
+p.split-parent {
+  font-family: 'Book Antiqua', 'Palatino Linotype', Palatino, Georgia, serif;
+  font-weight: 700;
+  color: rgb(54 95 159);
+}
+html.dark p.split-parent {
+  color: rgb(143 160 210);
+}
+
+/* Thin Moss Green rule under the top bar, like the guide's section dividers */
+.absolute.top-0.z-20.h-\[52px\] {
+  border-bottom: 2px solid rgb(170 176 88);
+}
+
+/* Text selection in Cream */
+::selection {
+  background-color: rgb(255 219 169);
+  color: rgb(33 33 33);
 }
 
 /* The send button is painted with `bg-text-primary` (inverted text colour),
    not --surface-submit, so recolour it directly in both modes. */
 #send-button {
-  background-color: rgb(24 132 70);
+  background-color: rgb(54 95 159);
 }
 #send-button:not(:disabled):hover {
-  background-color: rgb(17 104 55);
+  background-color: rgb(43 76 128);
 }
 #send-button svg {
   color: rgb(255 255 255);
+}
+
+/* Logo on dark backgrounds gets a white edge (guide p.4). The seal's wrappers
+   clip with overflow:hidden, so the ring goes on the wrapper. Stand-in until
+   MOD supplies the official white-edge artwork. */
+html.dark :is(div, span):has(> img[src*="icon-192x192"]) {
+  box-shadow: 0 0 0 2px rgb(255 255 255);
 }

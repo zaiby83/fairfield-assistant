@@ -75,7 +75,7 @@ services:
         -e 's#<link rel="stylesheet" href="./assets/fairfield-theme.css[^>]*>##'
         -e "s#</head>#<link rel=\"stylesheet\" href=\"./assets/fairfield-theme.css?v=$$v\"></head>#"
         -e 's#<title>LibreChat</title>#<title>Fairfield AI Assistant</title>#'
-        -e 's#name="theme-color" content="[^"]*"#name="theme-color" content="\#188446"#'
+        -e 's#name="theme-color" content="[^"]*"#name="theme-color" content="\#365f9f"#'
         client/dist/index.html;
         exec npm run backend
 
