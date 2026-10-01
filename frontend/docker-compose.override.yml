@@ -71,20 +71,23 @@ services:
       - { type: bind, read_only: true, source: ../frontend/branding/maskable-icon.png, target: /app/client/dist/assets/maskable-icon.png }
       - { type: bind, read_only: true, source: ../frontend/branding/manifest.webmanifest, target: /app/client/dist/manifest.webmanifest }
       - { type: bind, read_only: true, source: ../frontend/branding/fairfield-theme.css, target: /app/client/dist/assets/fairfield-theme.css }
+      - { type: bind, read_only: true, source: ../frontend/branding/fairfield.js, target: /app/client/dist/assets/fairfield.js }
     # Same as the image's CMD (`npm run backend`), but first patch the shell
-    # index.html: link the Fairfield colour theme after the bundled CSS, and set
-    # the pre-JS <title> and theme-color. The server reads index.html once at
-    # startup and serves it from memory (the stale index.html.gz/.br are never
-    # served). Assets are cached for 2 days, so the link carries a checksum of the
-    # CSS (`?v=`); any old link is stripped first so restarts don't patch twice.
+    # index.html: link the Fairfield theme CSS after the bundled CSS, add the
+    # Fairfield layout script, and set the pre-JS <title> and theme-color. The
+    # server reads index.html once at startup and serves it from memory (the stale
+    # index.html.gz/.br are never served). Assets are cached for 2 days, so both
+    # tags carry a checksum of the two files (`?v=`); old tags are stripped first
+    # so restarts don't patch twice.
     command:
       - sh
       - -c
       - >-
-        v=$$(cksum < client/dist/assets/fairfield-theme.css | cut -d' ' -f1) &&
+        v=$$(cat client/dist/assets/fairfield-theme.css client/dist/assets/fairfield.js | cksum | cut -d' ' -f1) &&
         sed -i
         -e 's#<link rel="stylesheet" href="./assets/fairfield-theme.css[^>]*>##'
-        -e "s#</head>#<link rel=\"stylesheet\" href=\"./assets/fairfield-theme.css?v=$$v\"></head>#"
+        -e 's#<script defer src="./assets/fairfield.js[^>]*></script>##'
+        -e "s#</head>#<link rel=\"stylesheet\" href=\"./assets/fairfield-theme.css?v=$$v\"><script defer src=\"./assets/fairfield.js?v=$$v\"></script></head>#"
         -e 's#<title>LibreChat</title>#<title>Fairfield AI Assistant</title>#'
         -e 's#name="theme-color" content="[^"]*"#name="theme-color" content="\#365f9f"#'
         client/dist/index.html;

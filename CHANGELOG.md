@@ -235,3 +235,25 @@ Verified:
   still needs work.
 - city-web cannot connect directly (1.1.1.1, www.fairfield.ca.gov, 192.168.250.1 all blocked); via the proxy,
   example.com and www.google.com get 403 and are logged TCP_DENIED; the api container cannot reach webproxy.
+
+## 2026-10-01 — City website look + mode picker (Mac)
+- [Mac] Modelled on fairfield.ca.gov (user: "still looks very AI"). fairfield-theme.css + new branding/fairfield.js
+  (a <script defer> added to index.html by the api command, same ?v=<cksum of css+js> cache-buster as the CSS):
+  Royal Blue header band with Moss Green rule, white-edged seal + serif "City of / Fairfield" wordmark,
+  "AI ASSISTANT · STAFF ONLY" label; new-chat screen: "HOW CAN WE HELP?" label between Moss rules, serif headline,
+  no floating avatar, Draft / Summarize / Explain tiles (Cream / Light Moss / Blue Gray tint, dark text >= 7:1)
+  under the message box that fill a starter prompt (never send) and are removed once a chat starts; squared
+  controls; Royal Blue composer edge; serif caps sidebar headings; Royal Blue bar on the selected chat;
+  Royal Blue tint on the user's own messages. Footer keeps "TSS" (user).
+- [Mac] Mode picker (user: model picker "looks a bit misleading"): styled as "MODE <current> ▾" after a divider,
+  no duplicate seal; search box visually hidden (kept for keyboard focus / screen readers); white focus ring
+  on the band. librechat.yaml: interface.modelSelect false, which removes the raw "Fairfield AI ›" endpoint
+  entry (its models skipped the specs' system prompts); spec labels/descriptions -> "General" ("Writing,
+  summaries and City questions.") / "Images & screenshots" ("Reads images and screenshots you upload.").
+  modelLabel unchanged, so the placeholder and reply name stay "Fairfield Assistant". Welcome text: 👋 removed.
+- [Mac] Coordinated every shared-file edit and api recreate with the city-web session. The librechat.yaml lines
+  above landed in that session's commit 78acac4; this commit has the branding files and the override's
+  fairfield.js mount + script-tag lines.
+- [Mac] Checked light, dark and phone width in the browser; tile fills the composer (React sees it), mode
+  switching works, menu lists exactly the two specs, arrow keys still navigate it.
+- Re-check after any LibreChat upgrade: fairfield.js keys off LibreChat markup (it fails quietly to stock UI).

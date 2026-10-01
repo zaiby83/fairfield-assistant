@@ -80,9 +80,266 @@ html.dark p.split-parent {
   color: rgb(143 160 210);
 }
 
-/* Thin Moss Green rule under the top bar, like the guide's section dividers */
-.absolute.top-0.z-20.h-\[52px\] {
-  border-bottom: 2px solid rgb(170 176 88);
+/* ------------------------------------------------------------------------
+ * City layout, modelled on fairfield.ca.gov: Royal Blue header band with the
+ * seal and serif wordmark, letter-spaced section labels between Moss Green
+ * rules, pastel quick-start tiles, squared controls. The `ff-*` elements and
+ * classes are added by fairfield.js.
+ * ---------------------------------------------------------------------- */
+
+/* Squarer controls and surfaces (the site uses square buttons and tiles) */
+html:root {
+  --theme-control-radius: 0.25rem;
+  --theme-round-control-radius: 0.25rem;
+  --theme-surface-radius: 0.375rem;
+  --theme-large-surface-radius: 0.5rem;
+}
+
+/* Header band (both modes). Solid, replacing the stock fade-out gradient. */
+.ff-bar {
+  background: rgb(54 95 159) !important;
+  border-bottom: 3px solid rgb(170 176 88);
+  color: rgb(255 255 255);
+}
+.ff-bar svg,
+.ff-bar .text-text-primary {
+  color: rgb(255 255 255);
+}
+.ff-bar button,
+.ff-bar a {
+  color: rgb(255 255 255);
+  background-color: transparent;
+  border-color: rgb(255 255 255 / 0.45);
+}
+.ff-bar button:hover,
+.ff-bar a:hover {
+  background-color: rgb(255 255 255 / 0.12);
+}
+/* The band is solid now, so start the scrolling content below it */
+.ff-under-bar {
+  padding-top: 55px;
+}
+
+.ff-wordmark {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0 0.5rem 0 0.25rem;
+  font-family: 'Book Antiqua', 'Palatino Linotype', Palatino, Georgia, serif;
+  line-height: 1.05;
+  user-select: none;
+}
+.ff-wordmark img {
+  width: 34px;
+  height: 34px;
+  border: 2px solid rgb(255 255 255); /* white edge on a dark background (guide p.4) */
+}
+.ff-wordmark small {
+  display: block;
+  font-size: 0.75rem;
+  font-style: italic;
+  font-weight: 400;
+}
+.ff-wordmark strong {
+  display: block;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+/* Mode picker (LibreChat's model selector): a labelled control, not a second
+   logo. Divider after the wordmark, "MODE" caption, current mode, chevron. */
+.ff-wordmark {
+  margin-right: 0.25rem;
+  padding-right: 0.9rem;
+  border-right: 1px solid rgb(255 255 255 / 0.35);
+}
+.ff-bar [data-testid='model-selector-button'] {
+  height: 2.1rem;
+  gap: 0.45rem;
+  padding: 0 0.7rem;
+  border: 1px solid rgb(255 255 255 / 0.6);
+  border-radius: 0.25rem;
+  font-weight: 600;
+}
+.ff-bar [data-testid='model-selector-button']::before {
+  content: 'Mode';
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+.ff-bar [data-testid='model-selector-button']::after {
+  content: '';
+  flex-shrink: 0;
+  width: 0.45rem;
+  height: 0.45rem;
+  margin: -0.2rem 0 0 0.15rem;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg);
+}
+/* Keyboard focus on the band: white ring (the stock ring is near-black) */
+.ff-bar :is(button, a):focus-visible {
+  box-shadow: 0 0 0 2px rgb(54 95 159), 0 0 0 4px rgb(255 255 255) !important;
+}
+/* The seal already sits in the wordmark; don't repeat it in the control */
+.ff-bar [data-testid='model-selector-button'] > div:has(img) {
+  display: none;
+}
+/* Two modes need no search box. Visually hidden, not removed: the menu's
+   keyboard navigation keeps focus in it, and screen readers still get it. */
+div.sticky:has(> div > input#model-search) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.ff-bar-label {
+  flex-shrink: 0;
+  padding-right: 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+@media (max-width: 767px) {
+  .ff-bar-label { display: none; }
+  .ff-wordmark small { display: none; }
+  .ff-bar [data-testid='model-selector-button']::before { display: none; }
+}
+
+/* New-chat screen: no floating avatar; serif headline under a section label */
+div:has(> p.split-parent) > div.size-10 {
+  display: none;
+}
+p.split-parent {
+  font-size: 1.4rem;
+  line-height: 1.25;
+  text-align: center;
+}
+.ff-kicker {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+  color: rgb(54 95 159);
+  font-family: 'Book Antiqua', 'Palatino Linotype', Palatino, Georgia, serif;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+}
+.ff-kicker::before,
+.ff-kicker::after {
+  content: '';
+  width: 3rem;
+  height: 1px;
+  background: rgb(170 176 88);
+}
+html.dark .ff-kicker {
+  color: rgb(143 160 210);
+}
+
+/* Quick-start tiles (Cream / Light Moss / Blue Gray tint, like the site's
+   Residents / Business / Visitors tiles). Dark text on each: 7:1 or better. */
+.ff-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 48rem;
+  margin-top: 1rem;
+  padding: 0 1rem;
+}
+.ff-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.8rem 0.6rem 0.5rem;
+  border: 0;
+  border-radius: 0;
+  text-align: center;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.ff-tile:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgb(0 0 0 / 0.12);
+}
+.ff-tile:focus-visible {
+  outline: 2px solid rgb(54 95 159);
+  outline-offset: 2px;
+}
+.ff-tile b {
+  font-family: 'Book Antiqua', 'Palatino Linotype', Palatino, Georgia, serif;
+  font-size: 0.85rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+.ff-tile span {
+  font-size: 0.85rem;
+}
+.ff-tile svg {
+  width: 1rem;
+  height: 1rem;
+  margin-top: 0.15rem;
+}
+.ff-tile--cream { background: rgb(255 219 169); color: rgb(90 61 18); }
+.ff-tile--moss  { background: rgb(228 231 171); color: rgb(63 68 16); }
+.ff-tile--blue  { background: rgb(201 207 230); color: rgb(31 58 99); }
+@media (max-width: 639px) {
+  .ff-tiles { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Composer: squared, with a Royal Blue edge */
+div[data-testid='composer-surface'] {
+  border-radius: 0.375rem;
+  border: 1.5px solid rgb(54 95 159);
+}
+html.dark div[data-testid='composer-surface'] {
+  border-color: rgb(123 138 187);
+}
+
+/* Sidebar section headings (Projects, Chats) in the site's serif caps */
+nav div.h-8 > button span.select-none {
+  color: rgb(54 95 159);
+  font-family: 'Book Antiqua', 'Palatino Linotype', Palatino, Georgia, serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+html.dark nav div.h-8 > button span.select-none {
+  color: rgb(143 160 210);
+}
+
+/* Your own messages: Royal Blue tint instead of plain grey (text stays 12:1+) */
+.user-turn [data-testid='message-body'] {
+  background-color: rgb(231 236 243);
+}
+html.dark .user-turn [data-testid='message-body'] {
+  background-color: rgb(44 58 84);
+}
+
+/* Selected chat: Royal Blue bar on the left edge */
+[data-testid='convo-item'] {
+  border-radius: 0 0.25rem 0.25rem 0;
+}
+[data-testid='convo-item'].bg-surface-active-alt {
+  box-shadow: inset 3px 0 0 rgb(54 95 159);
+}
+[data-testid='convo-item'].bg-surface-active-alt::before {
+  display: none;
+}
+html.dark [data-testid='convo-item'].bg-surface-active-alt {
+  box-shadow: inset 3px 0 0 rgb(123 138 187);
 }
 
 /* Text selection in Cream */
@@ -106,6 +363,6 @@ html.dark p.split-parent {
 /* Logo on dark backgrounds gets a white edge (guide p.4). The seal's wrappers
    clip with overflow:hidden, so the ring goes on the wrapper. Stand-in until
    MOD supplies the official white-edge artwork. */
-html.dark :is(div, span):has(> img[src*="icon-192x192"]) {
+html.dark :is(div, span):not(.ff-wordmark):has(> img[src*="icon-192x192"]) {
   box-shadow: 0 0 0 2px rgb(255 255 255);
 }
