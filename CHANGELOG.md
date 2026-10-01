@@ -147,3 +147,33 @@ Still open (not changed here; needs the user, or is out of scope):
   is open on its desktop with a live outbound connection. To air-gap it: `sudo nmcli con down COF-P` at the console.
 - [Mac] still uses the cellular hotspot for its own traffic. The containers are isolated from it; the Mac itself is not.
 - Ingress goes through socat, so LibreChat sees every client as the gateway IP (per-IP rate limits/bans are shared).
+
+## 2026-10-01 — Staff UI lockdown (session "fairfield-chatbot")
+Goal: staff see only chat, the model picker (the two modelSpecs) and file uploads. Air-gap settings above untouched.
+
+Changes:
+- [Mac] frontend/librechat.yaml:
+  `interface`: modelSelect, fileSearch, fileCitations true; endpointsMenu, sidePanel, agents, prompts, bookmarks, memories,
+  presets, parameters, multiConvo, temporaryChat, runCode, webSearch, skills, sharedLinks false;
+  marketplace.use, mcpServers.use false; schedules.use/create false (the boolean `schedules: false` did not update the roles).
+  `endpoints.agents.disableBuilder: true`.
+  New `fileConfig`: 10 files / 25 MB each / 100 MB per message, serverFileSizeLimit 100 MB;
+  types pdf, text/*, Office OpenXML, msword, image/* (image/* needed by fairfield-vision).
+- [Mac] LibreChat/.env: added `ENDPOINTS=custom` (after the commented example, line ~404); ALLOW_SHARED_LINKS true -> false.
+- [Mac] `docker compose up -d api` (this also recreated rag_api, which reads .env) then `docker compose restart api` x3.
+- [Mac] Ran a throwaway `docker run --rm --network none ruby:alpine` to parse the YAML. This pulled ruby:alpine from Docker Hub
+  onto the Mac host (outside the stack). Image removed straight after. Don't do this again: host Docker can still reach the internet.
+
+Verified (after):
+- api log: custom config loaded, server listening, readiness checks passing; role updates logged for MCP_SERVERS, SKILLS,
+  SHARED_LINKS and SCHEDULES.
+- Mongo `roles` (USER and ADMIN): AGENTS, PROMPTS, BOOKMARKS, MEMORIES, MULTI_CONVO, TEMPORARY_CHAT, RUN_CODE, WEB_SEARCH,
+  MARKETPLACE, MCP_SERVERS, SKILLS.USE, SCHEDULES, SHARED_LINKS all false; FILE_SEARCH and FILE_CITATIONS true.
+- An already-logged-in client got 403 on /api/agents and /api/tags (bookmarks), so the server enforces it, not just the UI.
+- `/app/.env` in the api container shows ENDPOINTS=custom and ALLOW_SHARED_LINKS=false.
+
+Still open:
+- Not yet checked in a browser as a normal (non-admin) user.
+- Startup warning: modelSpecs.enforce "can conflict with" modelSelect. Expected: staff choose only between the two specs.
+- Already in the logs before this change: METRICS_SECRET unset; scheduler not started (no Redis). Schedules are now disabled anyway.
+- Acceptable-use text in librechat.yaml says not to enter CJI, which conflicts with the CJIS work. Needs a policy decision.

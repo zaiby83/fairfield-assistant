@@ -9,6 +9,31 @@ cache: true
 
 interface:
   customWelcome: 'Welcome to the Fairfield AI Assistant 👋 — built by TSS for City of Fairfield staff.'
+  # Staff UI: chat + model picker + uploads only
+  modelSelect: true
+  endpointsMenu: false
+  fileSearch: true
+  fileCitations: true
+  sidePanel: false
+  agents: false
+  prompts: false
+  bookmarks: false
+  memories: false
+  presets: false
+  parameters: false
+  multiConvo: false
+  temporaryChat: false
+  runCode: false
+  webSearch: false
+  marketplace:
+    use: false
+  mcpServers:
+    use: false
+  skills: false
+  schedules:
+    use: false
+    create: false
+  sharedLinks: false
   termsOfService:
     externalUrl: 'https://<otis365-link-to-IT-POL-AI-001>'
     openNewTab: true
@@ -27,6 +52,8 @@ interface:
       See the full policy: IT-POL-AI-001 (link above).
 
 endpoints:
+  agents:
+    disableBuilder: true
   custom:
     - name: 'Fairfield AI'
       apiKey: '${LITELLM_MASTER_KEY}'
@@ -40,6 +67,20 @@ endpoints:
       titleModel: 'fairfield-general'
       modelDisplayLabel: 'Fairfield AI'
       iconURL: '/assets/icon-192x192.png'
+
+fileConfig:
+  endpoints:
+    default:
+      fileLimit: 10
+      fileSizeLimit: 25
+      totalSizeLimit: 100
+      supportedMimeTypes:
+        - "application/pdf"
+        - "text/.*"
+        - "application/vnd.openxmlformats-officedocument.*"
+        - "application/msword"
+        - "image/.*"
+  serverFileSizeLimit: 100
 
 modelSpecs:
   enforce: true
