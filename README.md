@@ -9,19 +9,34 @@
  Browser (Mac, http://localhost:3080)
    │
    ▼
- LibreChat v0.8.8 (api) ── mongodb, meilisearch, rag_api, vectordb   [Docker Desktop on Mac]
+ gateway (socat) ── the only container with ports or a route off the Docker host
+   │
+   ▼  ┌──────────── compose "default" network, internal: true (no internet) ────────────┐
+ LibreChat v0.8.8 (api) ── mongodb, meilisearch, vectordb, rag_api ── ollama (nomic-embed-text)
    │  custom endpoint "Fairfield AI", key = LITELLM_MASTER_KEY
    ▼
- LiteLLM proxy v1.103.2  (127.0.0.1:4000 on Mac; "litellm:4000" inside compose)
+ LiteLLM proxy v1.103.2  ("litellm:4000" inside compose; 127.0.0.1:4000 on Mac via gateway)
    │  fairfield-general → hosted_vllm/gpt-oss-120b   key = VLLM_API_KEY
    │  fairfield-vision  → hosted_vllm/gemma4-26b
-   ▼  direct Ethernet 192.168.250.0/30 (Mac en8 .2 ↔ Spark enP7s7 .1)
+   ▼  gateway:8000/8001 → direct Ethernet 192.168.250.0/30 (Mac en8 .2 ↔ Spark enP7s7 .1)
  DGX Spark (GB10), image vllm-node (eugr/spark-vllm)
-   ├─ vllm-gptoss  openai/gpt-oss-120b            192.168.250.1:8000  gpu-mem 0.55, ctx 64k
-   └─ vllm-gemma   nvidia/Gemma-4-26B-A4B-NVFP4   192.168.250.1:8001  gpu-mem 0.25, ctx 32k (text+image)
+   ├─ vllm-gptoss  openai/gpt-oss-120b            192.168.250.1:8000  gpu-mem 0.65, ctx 64k
+   └─ vllm-gemma   nvidia/Gemma-4-26B-A4B-NVFP4   192.168.250.1:8001  gpu-mem 0.22, ctx 32k (text+image)
 ```
 
-Nothing binds `0.0.0.0` on a host interface. vLLM listens only on the direct-link address; LiteLLM, LibreChat and the admin panel are published only on the Mac's loopback.
+Nothing binds `0.0.0.0` on a host interface. vLLM listens only on the direct-link address. The gateway publishes LibreChat (3080), the admin panel (3000) and LiteLLM (4000) only on the Mac's loopback.
+
+## Air gap (CJIS)
+
+No City data may leave the City, and no component may call an external service.
+
+- **Network:** every compose service is on the `default` network, which is `internal: true`. The only exception is `gateway`. It also joins `egress` and runs fixed socat forwards: loopback ports in, and `gateway:8000/8001 → 192.168.250.1` out. Nothing else is forwarded.
+- **Document search:** `rag_api` embeds with the local `ollama` service (`EMBEDDINGS_PROVIDER=ollama`, `OLLAMA_NO_CLOUD=1`). It never uses OpenAI.
+- **No phone-home:** vLLM runs with `VLLM_NO_USAGE_STATS=1`, `DO_NOT_TRACK=1`, `HF_HUB_OFFLINE=1` and `HF_HUB_DISABLE_TELEMETRY=1`. LiteLLM runs with `LITELLM_LOCAL_MODEL_COST_MAP=True` and `--telemetry False`. Meilisearch runs with `MEILI_NO_ANALYTICS=true`.
+- **No cloud providers:** `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_KEY` and `ASSISTANTS_API_KEY` are blank in `LibreChat/.env`.
+- **New images and models:** nothing in the stack can pull. Pull on a networked machine, then `docker save | docker load` them onto the Mac, and copy Ollama models into `LibreChat/ollama_data/models`. Images that aren't pulled by the stack use `pull_policy: never`.
+- **Check egress:** from any container except `gateway`, `bash -c 'exec 3<>/dev/tcp/1.1.1.1/443'` must fail. See CHANGELOG ("Air gap for CJIS") for the full check.
+- **Still open:** the Spark is on COF-P Wi-Fi with an internet route, and the Mac uses a hotspot. The containers can't use either route, but the hosts themselves can.
 
 ## Repository layout
 

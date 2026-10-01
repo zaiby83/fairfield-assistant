@@ -2,14 +2,47 @@
 # Tracked at ~/fairfield-assistant/frontend/; LibreChat/docker-compose.override.yml is a symlink to it.
 # Relative paths resolve against the LibreChat/ project directory.
 # Docs: https://www.librechat.ai/docs/configuration/docker_override
+#
+# AIR-GAPPED (CJIS: no City data leaves the City). Every service sits on the
+# compose "default" network, which is `internal: true` and so has no route
+# off the Docker host. The one exception is the `gateway` container. It
+# also joins `egress`, and it runs only fixed socat forwards:
+#   ingress: Mac 127.0.0.1:3080/3000/4000 -> api / admin-panel / litellm
+#   egress : gateway:8000/8001 -> 192.168.250.1:8000/8001 (the Spark over the direct cable, nothing else)
+# No other service publishes ports or joins `egress`.
+
+networks:
+  default:
+    internal: true
+  egress: {}
 
 services:
+  gateway:
+    container_name: gateway
+    # alpine/socat:1.8.1.3 = alpine/socat@sha256:5ffbd6ae916cbad86a58fabe0d6d5a6fd5c2b47ddf031e82996baac9300e732f
+    # (pulled on the Spark, moved to the Mac with docker save/load; see CHANGELOG).
+    image: alpine/socat:1.8.1.3
+    pull_policy: never
+    restart: always
+    networks: [default, egress]
+    ports:
+      - "127.0.0.1:${PORT:-3080}:3080"
+      - "127.0.0.1:${ADMIN_PANEL_PORT:-3000}:3000"
+      - "127.0.0.1:4000:4000"
+    entrypoint: ["sh", "-c"]
+    command:
+      - >-
+        socat TCP-LISTEN:3080,fork,reuseaddr TCP:api:${PORT:-3080} &
+        socat TCP-LISTEN:3000,fork,reuseaddr TCP:admin-panel:3000 &
+        socat TCP-LISTEN:4000,fork,reuseaddr TCP:litellm:4000 &
+        socat TCP-LISTEN:8000,fork,reuseaddr TCP:192.168.250.1:8000 &
+        exec socat TCP-LISTEN:8001,fork,reuseaddr TCP:192.168.250.1:8001
+
   api:
     # Pin the v0.8.8 release image (the base file defaults to librechat-dev:latest).
     image: registry.librechat.ai/librechat-ai/librechat:v0.8.8
-    # Loopback only on the Mac.
-    ports: !override
-      - "127.0.0.1:${PORT:-3080}:${PORT:-3080}"
+    # Not published; reached through the gateway (127.0.0.1:3080 on the Mac).
+    ports: !reset []
     depends_on:
       - litellm
     volumes:
@@ -47,23 +80,49 @@ services:
         exec npm run backend
 
   admin-panel:
-    ports: !override
-      - "127.0.0.1:${ADMIN_PANEL_PORT:-3000}:3000"
+    # Pinned (the base file uses :latest). Reached through the gateway (127.0.0.1:3000).
+    image: registry.librechat.ai/clickhouse/librechat-admin-panel@sha256:a395465d1daa3c11495810a8c224df86675985d50de42e98e36eeedbd8aecb94
+    ports: !reset []
+
+  rag_api:
+    # Pinned (the base file uses :latest). Embeddings come from the local
+    # `ollama` service (EMBEDDINGS_PROVIDER=ollama in LibreChat/.env), not OpenAI.
+    image: registry.librechat.ai/librechat-ai/librechat-rag-api-dev-lite@sha256:a62ce2221b43a9bb57fa6cb733e7047c80132960272c33d5704028f3071a1251
+    depends_on:
+      - vectordb
+      - ollama
+
+  ollama:
+    container_name: ollama
+    # ollama/ollama:0.35.0 = ollama/ollama@sha256:2a6e883b917fc543389599dae79918f5cac9e1438890506982f44aa4f5625d01
+    # (pulled on the Spark, moved with docker save/load). CPU only; serves the
+    # nomic-embed-text embedding model for rag_api. Model files were copied in
+    # from the Spark (no pulls from here: no internet route).
+    image: ollama/ollama:0.35.0
+    pull_policy: never
+    restart: always
+    environment:
+      - OLLAMA_HOST=0.0.0.0:11434
+      - OLLAMA_NO_CLOUD=1 # no remote inference, web search or ollama.com lookups
+      - OLLAMA_KEEP_ALIVE=24h
+    volumes:
+      - ./ollama_data:/root/.ollama
 
   litellm:
     container_name: litellm
     # v1.103.2 (same digest as main-stable on 2026-10-01); multi-arch incl. linux/arm64.
     image: ghcr.io/berriai/litellm:v1.103.2@sha256:f63fb81b831b170ec16851e23c36ac5bf52ef106b271406429524a2ed730bbfd
     restart: always
-    command: ["--config", "/app/config.yaml", "--port", "4000"]
-    # Published on the Mac loopback only (inside the compose network the proxy
-    # must listen on the container interface so the api service can reach it).
-    ports:
-      - "127.0.0.1:4000:4000"
+    command: ["--config", "/app/config.yaml", "--port", "4000", "--telemetry", "False"]
+    # Not published; reached through the gateway (127.0.0.1:4000). Calls the Spark via gateway:8000/8001.
+    depends_on:
+      - gateway
     env_file:
       - ../.env # VLLM_API_KEY (project secrets file, gitignored)
     environment:
       - LITELLM_MASTER_KEY=${LITELLM_MASTER_KEY}
+      # Use the bundled model price map instead of fetching it from raw.githubusercontent.com at startup.
+      - LITELLM_LOCAL_MODEL_COST_MAP=True
     volumes:
       - type: bind
         source: ../frontend/litellm-config.yaml

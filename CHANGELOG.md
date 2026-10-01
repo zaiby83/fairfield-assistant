@@ -102,3 +102,48 @@ Changes:
 - [Mac] librechat.yaml: iconURL /assets/icon-192x192.png on the endpoint and both model specs.
 - [Mac] Recreated LibreChat (`docker compose up -d --force-recreate api`); verified served assets match, theme
   applied in light and dark, send button green. Committed f400da2.
+
+## 2026-10-01 — Air gap for CJIS (session "Internet connectivity check")
+Requirement (user): purely in-house, nothing hits an external service, no City data leaves the City.
+
+Found (before):
+- [Mac] rag_api embeddings defaulted to OpenAI (`OpenAIEmbeddings` in its log; OPENAI_API_KEY=user_provided). Uploaded
+  file-search text would have been sent to api.openai.com. Uploads dir was empty, so nothing had been embedded yet.
+- [Spark] vllm-gptoss and vllm-gemma were sending vLLM usage reports to stats.vllm.ai (hardware/config/model, a UUID;
+  no prompts). /root/.config/vllm/usage_stats.json written at 21:24/21:26 UTC.
+- [Mac] LiteLLM fetches its model cost map from raw.githubusercontent.com at startup.
+- [Mac] Every container could reach the internet over the Mac's hotspot.
+
+Changes:
+- [Mac] spark/start-vllm.sh: common_run_args add VLLM_NO_USAGE_STATS=1, DO_NOT_TRACK=1, HF_HUB_DISABLE_TELEMETRY=1.
+  bash -n + shellcheck clean; copied to Spark (sha256 4592d0d398b7b2a5… both sides).
+- [Spark] stop-vllm.sh + start-vllm.sh 14:37: vllm-gptoss ready 70s, vllm-gemma ready by 14:40. Verified that all 4 env
+  switches are set in both containers and no usage_stats.json is written.
+- [Spark] Pulled ollama/ollama@sha256:2a6e883b…5d01 (0.35.0) and alpine/socat@sha256:5ffbd6ae…732f (1.8.1.3) on COF-P,
+  pulled nomic-embed-text (274 MB) in a temporary container, then copied images (docker save | docker load) and
+  model files (models/ only, no Ollama identity key) to the Mac over the direct cable. Removed the staging dir and both images from the Spark.
+- [Mac] frontend/docker-compose.override.yml:
+  compose `default` network is now `internal: true` (no route off the Docker host);
+  new `gateway` (socat) is the only service on `egress` and the only one publishing ports:
+  127.0.0.1:3080/3000/4000 -> api/admin-panel/litellm, and gateway:8000/8001 -> 192.168.250.1:8000/8001 only.
+  api/admin-panel ports removed (`!reset []`); litellm port removed, `--telemetry False`, LITELLM_LOCAL_MODEL_COST_MAP=True;
+  new `ollama` service (OLLAMA_NO_CLOUD=1, models in LibreChat/ollama_data); admin-panel and rag_api pinned by digest
+  (were :latest); rag_api depends_on ollama.
+- [Mac] frontend/litellm-config.yaml: api_base -> http://gateway:8000/v1 and :8001/v1.
+- [Mac] LibreChat/.env (backup: LibreChat/.env.bak-pre-airgap, 600): OPENAI_API_KEY, ANTHROPIC_API_KEY, GOOGLE_KEY,
+  ASSISTANTS_API_KEY blanked (were user_provided); HELP_AND_FAQ_URL=/ (was https://librechat.ai);
+  added EMBEDDINGS_PROVIDER=ollama, EMBEDDINGS_MODEL=nomic-embed-text, OLLAMA_BASE_URL=http://ollama:11434.
+- [Mac] `docker compose down && up -d`.
+
+Verified (after):
+- From LibreChat, admin-panel, litellm, rag_api, ollama, chat-mongodb, vectordb: 1.1.1.1:443, api.openai.com:443 and
+  192.168.250.1:8000 are all blocked. chat-meilisearch has no probe tool but is on the same internal-only network.
+- rag_api log: `OllamaEmbeddings`; Ollama log: "Ollama cloud disabled: true".
+- A synthetic test document went through rag_api /embed -> /query (correct chunk returned) -> /documents delete.
+- Through the gateway: fairfield-general and fairfield-vision both answered a test chat; UI :3080 and admin panel :3000 return 200.
+
+Still open (not changed here; needs the user, or is out of scope):
+- [Spark] is still on COF-P Wi-Fi with a default route to the internet (used for the model downloads), and Firefox
+  is open on its desktop with a live outbound connection. To air-gap it: `sudo nmcli con down COF-P` at the console.
+- [Mac] still uses the cellular hotspot for its own traffic. The containers are isolated from it; the Mac itself is not.
+- Ingress goes through socat, so LibreChat sees every client as the gateway IP (per-IP rate limits/bans are shared).
